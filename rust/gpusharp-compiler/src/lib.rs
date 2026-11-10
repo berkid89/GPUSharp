@@ -1,18 +1,105 @@
-//! Adapter over the published `csharp-to-rust` crate.
+//! Turn a `[GpuKernel]` C# method into an element-wise host Rust kernel.
 //!
-//! GPUSharp does not parse C#. [`analyze_and_emit`] asks that crate to check a
-//! method and emit the equivalent Rust function. This does not generate or run
-//! a GPU kernel.
+//! GPUSharp does not parse C#. [`compile_kernel`] asks `csharp-to-rust` to
+//! check the method, keeps that crate's scalar function, and appends a slice
+//! wrapper. This does not generate PTX or run on a GPU.
 
-/// Check one C# method and return the Rust function produced by `csharp-to-rust`.
+use csharp_to_rust::PrimitiveType;
+use csharp_to_rust::ir::Method;
+
+/// Why [`compile_kernel`] failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Error {
+    /// The C# source is invalid or outside the `csharp-to-rust` subset.
+    Transpile(csharp_to_rust::Error),
+    /// The method type-checks but is not marked `[GpuKernel]`.
+    MissingGpuKernel,
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Transpile(error) => write!(f, "{error}"),
+            Self::MissingGpuKernel => f.write_str("method is missing the [GpuKernel] attribute"),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Transpile(error) => Some(error),
+            Self::MissingGpuKernel => None,
+        }
+    }
+}
+
+impl From<csharp_to_rust::Error> for Error {
+    fn from(error: csharp_to_rust::Error) -> Self {
+        Self::Transpile(error)
+    }
+}
+
+/// Check one `[GpuKernel]` method and return host Rust for it.
 ///
-/// Parsing, type checking, and Rust emission stay in the upstream crate.
+/// The string is the scalar function from `csharp-to-rust`, then a blank line,
+/// then an element-wise function over slices. The scalar body is not rewritten.
 ///
 /// # Errors
 ///
-/// Returns the upstream [`csharp_to_rust::Error`] unchanged when the source is
-/// invalid or outside the supported subset.
-pub fn analyze_and_emit(source: &str) -> Result<String, csharp_to_rust::Error> {
+/// Returns [`Error::Transpile`] when `csharp-to-rust` rejects the source.
+/// Returns [`Error::MissingGpuKernel`] when the method has no `GpuKernel`
+/// attribute.
+pub fn compile_kernel(source: &str) -> Result<String, Error> {
     let method = csharp_to_rust::analyze_method(source)?;
-    Ok(csharp_to_rust::emit_rust(&method))
+    if !method.attributes().iter().any(|name| name == "GpuKernel") {
+        return Err(Error::MissingGpuKernel);
+    }
+    let scalar = csharp_to_rust::emit_rust(&method);
+    let kernel = emit_elementwise_kernel(&method);
+    Ok(format!("{scalar}\n{kernel}"))
+}
+
+fn emit_elementwise_kernel(method: &Method) -> String {
+    let name = method.rust_name();
+    let return_type = rust_type_name(method.return_type());
+    let parameters = method.parameters();
+
+    let mut inputs = Vec::with_capacity(parameters.len() + 1);
+    for parameter in parameters {
+        inputs.push(format!(
+            "{}: &[{}]",
+            parameter.rust_name(),
+            rust_type_name(parameter.primitive_type())
+        ));
+    }
+    inputs.push(format!("out: &mut [{return_type}]"));
+
+    let mut body = String::new();
+    for parameter in parameters {
+        body.push_str(&format!(
+            "    assert_eq!({}.len(), out.len());\n",
+            parameter.rust_name()
+        ));
+    }
+
+    let call_args = parameters
+        .iter()
+        .map(|parameter| format!("{}[i]", parameter.rust_name()))
+        .collect::<Vec<_>>()
+        .join(", ");
+    body.push_str("    for i in 0..out.len() {\n");
+    body.push_str(&format!("        out[i] = {name}({call_args});\n"));
+    body.push_str("    }\n");
+
+    format!("pub fn {name}_kernel({}) {{\n{body}}}\n", inputs.join(", "))
+}
+
+fn rust_type_name(primitive_type: PrimitiveType) -> &'static str {
+    match primitive_type {
+        PrimitiveType::I32 => "i32",
+        PrimitiveType::F32 => "f32",
+        PrimitiveType::F64 => "f64",
+        PrimitiveType::Bool => "bool",
+    }
 }

@@ -44,7 +44,7 @@ cargo build --manifest-path rust/gpusharp-compiler/Cargo.toml
 cargo run --manifest-path rust/gpusharp-compiler/Cargo.toml
 ```
 
-The Rust CLI prints a placeholder message. It does not compile kernels.
+The Rust CLI prints the element-wise host kernel for a hardcoded `Add` sample. It does not compile or run that kernel.
 
 ## Development
 
