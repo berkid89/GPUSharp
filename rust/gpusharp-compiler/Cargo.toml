@@ -6,3 +6,4 @@ license = "Apache-2.0"
 description = "Experimental Rust compiler component for GPUSharp"
 
 [dependencies]
+csharp-to-rust = "=0.1.2"

@@ -62,20 +62,6 @@ cargo clippy --manifest-path rust/gpusharp-compiler/Cargo.toml --all-targets -- 
 
 `cargo fmt` and `cargo clippy` require the `rustfmt` and `clippy` components (`rustup component add rustfmt clippy`).
 
-## Roadmap
-
-Repository scaffolding:
-
-- [x] **Milestone 0 — Repository scaffold:** .NET 10 class library and Rust compiler package build independently, with no GPU or CUDA toolchain.
-
-GPU milestones:
-
-- [ ] **Milestone 1 — Rust GPU proof of concept:** compile and execute a manually written element-wise vector-add kernel on NVIDIA hardware.
-- [ ] **Milestone 2 — Transpiler integration:** use a C# scalar method as the calculation in a generated kernel.
-- [ ] **Milestone 3 — .NET execution:** transfer `float[]` buffers, launch the GPU kernel, and return correct results to .NET.
-- [ ] **Milestone 4 — C# developer experience:** introduce `[GpuKernel]` and a Roslyn source generator producing typed wrappers such as `CalculatorGpu.Add(...)`.
-- [ ] **Later:** broader type support, diagnostics, memory/performance optimization, and more GPU operations.
-
 ## License
 
 GPUSharp is licensed under the [Apache License 2.0](LICENSE).
