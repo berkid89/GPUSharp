@@ -22,34 +22,52 @@ const MULTIPLY: &str = r#"
     }
 "#;
 
-const ADD_RUST: &str = r#"pub fn add(a: f32, b: f32) -> f32 {
-    a + b
-}
+const ADD_RUST: &str = r#"#[cuda_module]
+mod add {
+    use cuda_device::{DisjointSlice, kernel, thread};
 
-pub fn add_kernel(a: &[f32], b: &[f32], out: &mut [f32]) {
-    assert_eq!(a.len(), out.len());
-    assert_eq!(b.len(), out.len());
-    for i in 0..out.len() {
-        out[i] = add(a[i], b[i]);
+    pub fn add(a: f32, b: f32) -> f32 {
+        a + b
+    }
+
+    #[kernel]
+    pub fn add_kernel(a: &[f32], b: &[f32], mut out: DisjointSlice<f32>) {
+        let idx = thread::index_1d();
+        let i = idx.get();
+        if i >= a.len() {
+            return;
+        }
+        if let Some(slot) = out.get_mut(idx) {
+            *slot = add(a[i], b[i]);
+        }
     }
 }
 "#;
 
-const MULTIPLY_RUST: &str = r#"pub fn multiply(a: f32, b: f32) -> f32 {
-    a * b
-}
+const MULTIPLY_RUST: &str = r#"#[cuda_module]
+mod multiply {
+    use cuda_device::{DisjointSlice, kernel, thread};
 
-pub fn multiply_kernel(a: &[f32], b: &[f32], out: &mut [f32]) {
-    assert_eq!(a.len(), out.len());
-    assert_eq!(b.len(), out.len());
-    for i in 0..out.len() {
-        out[i] = multiply(a[i], b[i]);
+    pub fn multiply(a: f32, b: f32) -> f32 {
+        a * b
+    }
+
+    #[kernel]
+    pub fn multiply_kernel(a: &[f32], b: &[f32], mut out: DisjointSlice<f32>) {
+        let idx = thread::index_1d();
+        let i = idx.get();
+        if i >= a.len() {
+            return;
+        }
+        if let Some(slot) = out.get_mut(idx) {
+            *slot = multiply(a[i], b[i]);
+        }
     }
 }
 "#;
 
 #[test]
-fn add_emits_elementwise_host_kernel() {
+fn add_emits_elementwise_cuda_kernel() {
     let rust = compile_kernel(ADD).expect("Add should be supported");
     assert_eq!(rust, ADD_RUST);
     assert!(

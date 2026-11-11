@@ -24,6 +24,9 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install cuda-oxide
+        uses: ./.github/actions/cuda-oxide
+
       - name: Check tag matches package version
         if: github.event_name == 'push'
         shell: bash

@@ -7,7 +7,7 @@
     <PackageId>GPUSharp</PackageId>
     <Version>0.1.0</Version>
     <Authors>Daniel Berki</Authors>
-    <Description>Write GPU kernels in C#. Mark a scalar method with [GpuKernel] and call the generated array API on NVIDIA GPUs. Requires .NET 10 and rustc on PATH.</Description>
+    <Description>Write GPU kernels in C#. Mark a scalar method with [GpuKernel] and call the generated array API on NVIDIA GPUs. Building a kernel requires Linux, cargo oxide, the CUDA toolkit, and LLVM 21. Running it requires an NVIDIA GPU.</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/berkid89/GPUSharp</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

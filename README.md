@@ -19,15 +19,17 @@ float[] result = CalculatorGpu.Add(a, b);
 
 ## Install
 
-GPUSharp targets .NET 10. [rustc](https://www.rust-lang.org/tools/install) must be on `PATH`.
+GPUSharp targets .NET 10. Building a `[GpuKernel]` project requires Linux, [cargo oxide](https://github.com/NVlabs/cuda-oxide) 0.2.1, the CUDA toolkit, and LLVM 21. Running the kernel requires an NVIDIA GPU (Ampere, `sm_80`, or newer).
 
 ```bash
 dotnet add package GPUSharp --version 0.1.0
 ```
 
+The published package includes a Windows compiler frontend. That frontend cannot compile these kernels. Build them on Linux with `cargo oxide` on `PATH`.
+
 ## Example
 
-From this repository:
+On a Linux machine with an NVIDIA GPU:
 
 ```bash
 dotnet run --project samples/AddArrays
@@ -37,25 +39,27 @@ That runs `Calculator.Add` over two 5-element arrays and prints `11, 22, 33, 44,
 
 ## How it works
 
-`src/GPUSharp` defines `[GpuKernel]`. `src/GPUSharp.Generator` finds marked methods at build time and emits the array companion. `rust/gpusharp-compiler` compiles each method into the kernel the companion calls.
+`src/GPUSharp` defines `[GpuKernel]`. `src/GPUSharp.Generator` finds marked methods at build time and emits the array companion. `rust/gpusharp-compiler` compiles each method into a cuda-oxide kernel and a host library that launches it.
 
 ## Development
 
 - `samples/AddArrays` — console app that adds two arrays through `CalculatorGpu.Add`.
 - `src/GPUSharp` — .NET 10 package and `[GpuKernel]`.
 - `src/GPUSharp.Generator` — Roslyn source generator for the array companion.
-- `rust/gpusharp-compiler` — kernel compiler. `dll --out <dll> <export-name> <method.cs>` compiles one kernel.
+- `rust/gpusharp-compiler` — kernel compiler. `dll --out <so> <export-name> <method.cs>` compiles one kernel with `cargo oxide`.
+
+`cargo test` checks the emitted kernel. It does not need a GPU or the CUDA toolkit. `dotnet build` compiles the sample kernel and needs the Linux toolchain above. `dotnet run` launches it and needs a GPU.
 
 From the repository root:
 
 ```bash
-dotnet build GPUSharp.slnx
 cargo test --manifest-path rust/gpusharp-compiler/Cargo.toml
 cargo fmt --manifest-path rust/gpusharp-compiler/Cargo.toml --check
 cargo clippy --manifest-path rust/gpusharp-compiler/Cargo.toml --all-targets -- -D warnings
+dotnet build GPUSharp.slnx
 ```
 
-`cargo fmt` and `cargo clippy` require the `rustfmt` and `clippy` components (`rustup component add rustfmt clippy`).
+`cargo fmt` and `cargo clippy` require the `rustfmt` and `clippy` components (`rustup component add rustfmt clippy`). `GPUSHARP_CUDA_ARCH` overrides the default `sm_80` target.
 
 ## License
 

@@ -23,6 +23,9 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install cuda-oxide
+        uses: ./.github/actions/cuda-oxide
+
       - name: Build .NET
         run: dotnet build GPUSharp.slnx
 
