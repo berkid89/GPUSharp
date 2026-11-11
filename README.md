@@ -2,21 +2,24 @@
 
 Experimental C#/.NET GPU computing framework with a Rust-based compilation component.
 
-> **Work in progress / early prototype.** GPU execution and `[GpuKernel]` are not implemented yet. The repository currently contains a buildable scaffold only.
+> **Work in progress / early prototype.** `[GpuKernel]` can compile a scalar `float` method into a CPU array companion. GPU execution is not implemented yet.
 
 ## Vision
 
 GPUSharp is intended to let .NET developers write GPU-oriented computation in C# and run it on NVIDIA GPUs without hand-writing CUDA kernels.
 
-A scalar C# method would describe the per-element calculation. GPUSharp would turn that method into an element-wise GPU kernel, transfer array data, run the kernel, and expose a convenient .NET API. The generated companion API is the long-term developer experience. Placing `[GpuKernel]` on an existing method will not intercept ordinary method calls.
+A scalar C# method describes the per-element calculation. GPUSharp turns that method into an element-wise kernel and exposes a generated companion API. Placing `[GpuKernel]` on a method does not intercept ordinary method calls.
 
-**Future API — not yet implemented:**
+The sample runs that companion on the CPU:
 
 ```csharp
 public static class Calculator
 {
     [GpuKernel]
-    public static float Add(float a, float b) => a + b;
+    public static float Add(float a, float b)
+    {
+        return a + b;
+    }
 }
 
 float[] result = CalculatorGpu.Add(a, b);
@@ -24,32 +27,34 @@ float[] result = CalculatorGpu.Add(a, b);
 
 ## Architecture
 
-Three layers are planned, and none of them are wired up in this scaffold. The .NET side will own the public API, the `[GpuKernel]` attribute, a Roslyn source generator, and GPU runtime orchestration. The Rust crate `gpusharp-compiler` will turn supported C# methods into GPU-oriented code compiled to PTX. An NVIDIA runtime will load the compiled kernels, manage device memory, and return results to .NET. The Rust CUDA toolchain and the .NET–Rust integration mechanism are left for later milestones.
+The sample wires three pieces. `src/GPUSharp` defines `[GpuKernel]`. `src/GPUSharp.Generator` finds marked methods at `dotnet build`, asks `gpusharp-compiler` to compile them, and emits `CalculatorGpu`. The Rust crate compiles the scalar method to an element-wise host function and a CPU dll. CUDA, PTX, and device memory are not implemented.
 
 ## Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-- [Rust and Cargo](https://www.rust-lang.org/tools/install) (stable Rust, edition 2024)
+- [Rust and Cargo](https://www.rust-lang.org/tools/install) (stable Rust, edition 2024), including `rustc`
 - A Git client
 
-**No NVIDIA GPU or CUDA toolkit is required for this initial scaffold.** Later GPU milestones will require a suitable NVIDIA GPU environment.
+**No NVIDIA GPU or CUDA toolkit is required.** The sample runs the generated kernel on the CPU.
 
 ## Build and run
 
 From the repository root:
 
 ```bash
-dotnet build GPUSharp.slnx
-cargo build --manifest-path rust/gpusharp-compiler/Cargo.toml
-cargo run --manifest-path rust/gpusharp-compiler/Cargo.toml
+dotnet run --project samples/AddArrays
 ```
 
-The Rust CLI prints the element-wise host kernel for a hardcoded `Add` sample. It does not compile or run that kernel.
+That builds the host dll from `Calculator.Add` and prints `11, 22, 33, 44, 55`.
+
+`cargo run --manifest-path rust/gpusharp-compiler/Cargo.toml` still prints the Rust source for a hardcoded `Add` sample. It does not run that sample.
 
 ## Development
 
-- `src/GPUSharp` — .NET 10 class library and the future public API. It has no kernels, attributes, or native interop yet.
-- `rust/gpusharp-compiler` — Cargo package (Rust import name `gpusharp_compiler`) with a library entry point and a minimal CLI. This is the future compiler and code-generation component.
+- `samples/AddArrays` — console caller. It adds two 5-element arrays through `CalculatorGpu.Add`.
+- `src/GPUSharp` — .NET 10 library. It contains `[GpuKernel]`.
+- `src/GPUSharp.Generator` — Roslyn source generator. It builds `gpusharp_kernels` during compilation and emits the array companion.
+- `rust/gpusharp-compiler` — Cargo package (Rust import name `gpusharp_compiler`). `dll --out <dll> <export-name> <method.cs>` compiles one kernel into a host cdylib.
 
 Formatting and checks, from the repository root:
 

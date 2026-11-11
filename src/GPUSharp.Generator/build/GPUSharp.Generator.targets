@@ -1,0 +1,37 @@
+<Project>
+
+  <PropertyGroup>
+    <GpuSharpRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..\'))</GpuSharpRoot>
+    <GpuSharpManifest>$(GpuSharpRoot)rust\gpusharp-compiler\Cargo.toml</GpuSharpManifest>
+    <GpuSharpCompilerTarget>$(GpuSharpRoot)rust\gpusharp-compiler\target</GpuSharpCompilerTarget>
+    <GpuSharpProjectDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\'))</GpuSharpProjectDir>
+    <GpuSharpNativeDir>$(GpuSharpProjectDir)obj\$(Configuration)\$(TargetFramework)\gpusharp\</GpuSharpNativeDir>
+    <GpuSharpCompiler Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(GpuSharpCompilerTarget)\debug\gpusharp-compiler.exe</GpuSharpCompiler>
+    <GpuSharpCompiler Condition="!$([MSBuild]::IsOSPlatform('Windows'))">$(GpuSharpCompilerTarget)/debug/gpusharp-compiler</GpuSharpCompiler>
+    <GpuSharpNativeFileName Condition="$([MSBuild]::IsOSPlatform('Windows'))">gpusharp_kernels.dll</GpuSharpNativeFileName>
+    <GpuSharpNativeFileName Condition="$([MSBuild]::IsOSPlatform('Linux'))">libgpusharp_kernels.so</GpuSharpNativeFileName>
+    <GpuSharpNativeFileName Condition="$([MSBuild]::IsOSPlatform('OSX'))">libgpusharp_kernels.dylib</GpuSharpNativeFileName>
+    <GpuSharpNativePath>$(GpuSharpNativeDir)$(GpuSharpNativeFileName)</GpuSharpNativePath>
+    <GpuSharpOutputDir>$(GpuSharpProjectDir)bin\$(Configuration)\$(TargetFramework)\</GpuSharpOutputDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="GpuSharpCompiler" />
+    <CompilerVisibleProperty Include="GpuSharpNativePath" />
+  </ItemGroup>
+
+  <Target Name="BuildGpuSharpCompiler" BeforeTargets="CoreCompile">
+    <Exec
+      Command="cargo build --locked --manifest-path &quot;$(GpuSharpManifest)&quot; --target-dir &quot;$(GpuSharpCompilerTarget)&quot;"
+      EnvironmentVariables="CARGO_TARGET_DIR=$(GpuSharpCompilerTarget)" />
+    <MakeDir Directories="$(GpuSharpNativeDir)" />
+  </Target>
+
+  <Target Name="CopyGpuSharpKernels" AfterTargets="Build">
+    <Copy
+      SourceFiles="$(GpuSharpNativePath)"
+      DestinationFolder="$(GpuSharpOutputDir)"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

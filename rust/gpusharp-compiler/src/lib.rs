@@ -2,18 +2,27 @@
 //!
 //! GPUSharp does not parse C#. [`compile_kernel`] asks `csharp-to-rust` to
 //! check the method, keeps that crate's scalar function, and appends a slice
-//! wrapper. This does not generate PTX or run on a GPU.
+//! wrapper. [`build_host_dll`] compiles that wrapper into a CPU cdylib.
+//! This does not generate PTX or run on a GPU.
+
+mod dll;
+
+pub use dll::{HostDllKernel, build_host_dll};
 
 use csharp_to_rust::PrimitiveType;
 use csharp_to_rust::ir::Method;
 
-/// Why [`compile_kernel`] failed.
+/// Why [`compile_kernel`] or [`build_host_dll`] failed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     /// The C# source is invalid or outside the `csharp-to-rust` subset.
     Transpile(csharp_to_rust::Error),
     /// The method type-checks but is not marked `[GpuKernel]`.
     MissingGpuKernel,
+    /// The host dll path currently accepts only `float` kernels.
+    NotF32,
+    /// Compiling the host dll failed.
+    Host(String),
 }
 
 impl std::fmt::Display for Error {
@@ -21,6 +30,10 @@ impl std::fmt::Display for Error {
         match self {
             Self::Transpile(error) => write!(f, "{error}"),
             Self::MissingGpuKernel => f.write_str("method is missing the [GpuKernel] attribute"),
+            Self::NotF32 => {
+                f.write_str("element-wise host dll currently supports float kernels only")
+            }
+            Self::Host(message) => f.write_str(message),
         }
     }
 }
@@ -29,7 +42,7 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Transpile(error) => Some(error),
-            Self::MissingGpuKernel => None,
+            Self::MissingGpuKernel | Self::NotF32 | Self::Host(_) => None,
         }
     }
 }

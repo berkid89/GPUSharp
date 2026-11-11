@@ -18,13 +18,13 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      - name: Build .NET
-        run: dotnet build GPUSharp.slnx
-
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+
+      - name: Build .NET
+        run: dotnet build GPUSharp.slnx
 
       - name: Format
         working-directory: rust/gpusharp-compiler
