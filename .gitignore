@@ -22,3 +22,7 @@ Thumbs.db
 Desktop.ini
 
 .cursor/
+
+# Staged NuGet compiler and pack output
+src/GPUSharp/tools/
+artifacts/

@@ -1,9 +1,9 @@
-//! Turn a `[GpuKernel]` C# method into an element-wise host Rust kernel.
+//! Compile a `[GpuKernel]` C# method into an element-wise GPU kernel.
 //!
 //! GPUSharp does not parse C#. [`compile_kernel`] asks `csharp-to-rust` to
-//! check the method, keeps that crate's scalar function, and appends a slice
-//! wrapper. [`build_host_dll`] compiles that wrapper into a CPU cdylib.
-//! This does not generate PTX or run on a GPU.
+//! check the method, keeps that crate's scalar function, and appends the
+//! element-wise kernel. [`build_host_dll`] compiles that kernel into a library
+//! the generated .NET API can call.
 
 mod dll;
 
@@ -19,9 +19,9 @@ pub enum Error {
     Transpile(csharp_to_rust::Error),
     /// The method type-checks but is not marked `[GpuKernel]`.
     MissingGpuKernel,
-    /// The host dll path currently accepts only `float` kernels.
+    /// Float kernels are required on this path.
     NotF32,
-    /// Compiling the host dll failed.
+    /// Compiling the kernel library failed.
     Host(String),
 }
 
@@ -31,7 +31,7 @@ impl std::fmt::Display for Error {
             Self::Transpile(error) => write!(f, "{error}"),
             Self::MissingGpuKernel => f.write_str("method is missing the [GpuKernel] attribute"),
             Self::NotF32 => {
-                f.write_str("element-wise host dll currently supports float kernels only")
+                f.write_str("GPUSharp kernels use float")
             }
             Self::Host(message) => f.write_str(message),
         }

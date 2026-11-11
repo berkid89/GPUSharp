@@ -1,0 +1,120 @@
+name: Publish to NuGet
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Check tag matches package version
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(sed -n 's/.*<Version>\(.*\)<\/Version>.*/\1/p' src/GPUSharp/GPUSharp.csproj)"
+          if [ "$tag" != "$version" ]; then
+            echo "Tag v${tag} does not match GPUSharp.csproj version ${version}."
+            exit 1
+          fi
+
+      - name: Build .NET
+        run: dotnet build GPUSharp.slnx
+
+      - name: Format
+        working-directory: rust/gpusharp-compiler
+        run: cargo fmt --check
+
+      - name: Clippy
+        working-directory: rust/gpusharp-compiler
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Test
+        working-directory: rust/gpusharp-compiler
+        run: cargo test --locked --all-targets
+
+      - name: Doctests
+        working-directory: rust/gpusharp-compiler
+        run: cargo test --locked --doc
+
+  publish:
+    name: Publish
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - name: Install MinGW
+        run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64
+
+      - name: Build Windows compiler
+        working-directory: rust/gpusharp-compiler
+        env:
+          RUSTFLAGS: -C target-feature=+crt-static
+        run: cargo build --release --locked --target x86_64-pc-windows-gnu
+
+      - name: Stage compiler
+        run: |
+          mkdir -p src/GPUSharp/tools/win-x64
+          cp rust/gpusharp-compiler/target/x86_64-pc-windows-gnu/release/gpusharp-compiler.exe src/GPUSharp/tools/win-x64/gpusharp-compiler.exe
+
+      - name: Pack
+        run: dotnet pack src/GPUSharp/GPUSharp.csproj -c Release -o artifacts
+
+      - name: Check package contents
+        shell: bash
+        run: |
+          package="$(echo artifacts/GPUSharp.*.nupkg)"
+          entries="$(tar -tf "$package")"
+          for path in \
+            README.md \
+            build/GPUSharp.targets \
+            lib/net10.0/GPUSharp.dll \
+            analyzers/dotnet/cs/GPUSharp.Generator.dll \
+            tools/win-x64/gpusharp-compiler.exe
+          do
+            if ! grep -qx "$path" <<< "$entries"; then
+              echo "Package is missing $path"
+              exit 1
+            fi
+          done
+
+      - name: NuGet login
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to NuGet
+        run: dotnet nuget push artifacts/GPUSharp.*.nupkg --api-key "${{ steps.login.outputs.NUGET_API_KEY }}" --source https://api.nuget.org/v3/index.json

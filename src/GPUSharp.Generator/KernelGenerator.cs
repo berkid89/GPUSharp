@@ -13,7 +13,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace GPUSharp.Generator;
 
 /// <summary>
-/// Builds a host dll for each <c>[GpuKernel]</c> method and emits the array companion.
+/// Builds a GPU kernel for each <c>[GpuKernel]</c> method and emits the array companion.
 /// </summary>
 [Generator]
 public sealed class KernelGenerator : IIncrementalGenerator
@@ -68,7 +68,7 @@ public sealed class KernelGenerator : IIncrementalGenerator
         if (string.IsNullOrWhiteSpace(options.Compiler) || string.IsNullOrWhiteSpace(options.NativePath))
         {
             output.ReportDiagnostic(Diagnostic.Create(
-                Descriptor(MissingBuild, "GPUSharp compiler path is missing. Import GPUSharp.Generator.targets."),
+                Descriptor(MissingBuild, "GPUSharp compiler path is missing. Import GPUSharp.targets."),
                 accepted[0].Location));
             return;
         }
@@ -95,7 +95,7 @@ public sealed class KernelGenerator : IIncrementalGenerator
             }
 
             output.ReportDiagnostic(Diagnostic.Create(
-                Descriptor(CompilerFailed, "GPUSharp host build failed: {0}"),
+                Descriptor(CompilerFailed, "GPUSharp kernel build failed: {0}"),
                 accepted[0].Location,
                 message));
             return;

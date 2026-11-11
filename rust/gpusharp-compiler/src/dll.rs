@@ -9,7 +9,7 @@ use csharp_to_rust::ir::Method;
 
 use crate::Error;
 
-/// One `[GpuKernel]` method to compile into a host cdylib.
+/// One `[GpuKernel]` method to compile into a kernel library.
 pub struct HostDllKernel<'a> {
     /// C# source containing that single method.
     pub source: &'a str,
@@ -17,7 +17,7 @@ pub struct HostDllKernel<'a> {
     pub export_name: &'a str,
 }
 
-/// Compile `[GpuKernel]` methods into one host cdylib.
+/// Compile `[GpuKernel]` methods into one kernel library.
 ///
 /// Each method must be an `f32` kernel. The cdylib exports `export_name` as a
 /// C function that takes one pointer per parameter, an output pointer, and a
@@ -70,7 +70,7 @@ fn checked_f32_kernel(source: &str) -> Result<Method, Error> {
     }
     if method.parameters().is_empty() {
         return Err(Error::Host(
-            "element-wise host dll requires at least one float parameter".to_string(),
+            "a GPUSharp kernel needs at least one float parameter".to_string(),
         ));
     }
     let f32_kernel = method.return_type() == PrimitiveType::F32
