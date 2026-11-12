@@ -22,6 +22,20 @@ runs:
         method: network
         sub-packages: '["nvcc", "cudart-dev"]'
 
+    - name: Expose the CUDA driver stub
+      shell: bash
+      run: |
+        set -euo pipefail
+        stub="${CUDA_PATH}/lib64/stubs/libcuda.so"
+        if [ ! -f "$stub" ]; then
+          echo "CUDA toolkit at ${CUDA_PATH} has no libcuda.so stub."
+          exit 1
+        fi
+        shadow="${RUNNER_TEMP}/libcuda-stub"
+        mkdir -p "$shadow"
+        ln -sfn "$stub" "$shadow/libcuda.so.1"
+        echo "LD_LIBRARY_PATH=${shadow}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+
     - name: Install LLVM 21
       shell: bash
       run: |
