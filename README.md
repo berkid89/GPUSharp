@@ -1,8 +1,10 @@
 # GPUSharp
 
-Write GPU kernels in C# and run them on NVIDIA GPUs.
+Turn ordinary C# methods into GPU-accelerated operations with a single attribute.
 
-Mark a scalar method with `[GpuKernel]`. GPUSharp compiles that method and generates an array API next to it. The scalar method remains a normal .NET method. The generated companion runs the kernel over arrays.
+GPUSharp is an experimental .NET library that compiles attributed C# methods into NVIDIA CUDA kernels using Roslyn source generation and a Rust-based compiler.
+
+Write your computation once in C#. Keep the original CPU method and use the generated GPU companion API to process arrays in parallel.
 
 ```csharp
 public static class Calculator
