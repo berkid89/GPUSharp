@@ -115,6 +115,8 @@ jobs:
           do
             if ! grep -qx "$path" <<< "$entries"; then
               echo "Package is missing $path"
+              echo "Package entries:"
+              printf '%s\n' "$entries"
               exit 1
             fi
           done

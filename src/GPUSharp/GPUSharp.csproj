@@ -33,7 +33,8 @@
       Text="Pack needs tools/linux-x64/gpusharp-compiler." />
     <ItemGroup>
       <None Include="$(GpuSharpWindowsCompiler)" Pack="true" PackagePath="tools/win-x64/gpusharp-compiler.exe" />
-      <None Include="$(GpuSharpLinuxCompiler)" Pack="true" PackagePath="tools/linux-x64/gpusharp-compiler" />
+      <!-- NuGet treats a PackagePath with no extension as a directory, so the folder must end with a slash. -->
+      <None Include="$(GpuSharpLinuxCompiler)" Pack="true" PackagePath="tools/linux-x64/" />
       <None Include="$(GpuSharpGeneratorDll)" Pack="true" PackagePath="analyzers/dotnet/cs/GPUSharp.Generator.dll" />
     </ItemGroup>
   </Target>
