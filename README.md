@@ -25,7 +25,7 @@ float[] result = CalculatorGpu.Add(a, b);
 GPUSharp targets .NET 10. `dotnet build` works on Windows and Linux. Running a kernel requires Linux, [cargo oxide](https://github.com/NVlabs/cuda-oxide) 0.2.1, the CUDA toolkit, LLVM 21, and an NVIDIA GPU (Ampere, `sm_80`, or newer). Calling a kernel on another operating system throws.
 
 ```bash
-dotnet add package GPUSharp --version 0.1.0
+dotnet add package GPUSharp
 ```
 
 The published package includes the compiler for Windows and Linux. Windows builds check the kernels and emit the managed API. Linux builds compile the kernel library with `cargo oxide` on `PATH`.
@@ -40,7 +40,7 @@ dotnet run --project samples/AddArrays
 
 That runs `Calculator.Add` over two 5-element arrays and prints `11, 22, 33, 44, 55`.
 
-`samples/AddArrays.NuGet` is the same program with a `PackageReference` to GPUSharp 0.1.0. Its `nuget.config` lists only nuget.org, so the build does not use a local package source or the projects in this repo:
+`samples/AddArrays.NuGet` is the same program with a floating `PackageReference` (`Version="*"`) so restore picks up the latest GPUSharp on nuget.org. Its `nuget.config` lists only nuget.org, so the build does not use a local package source or the projects in this repo:
 
 ```bash
 dotnet run --project samples/AddArrays.NuGet

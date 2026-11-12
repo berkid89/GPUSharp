@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>GPUSharp</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>Daniel Berki</Authors>
     <Description>Write GPU kernels in C#. Mark a scalar method with [GpuKernel] and call the generated array API on NVIDIA GPUs. The project builds on Windows and Linux. Running a kernel requires Linux, cargo oxide, the CUDA toolkit, LLVM 21, and an NVIDIA GPU.</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>

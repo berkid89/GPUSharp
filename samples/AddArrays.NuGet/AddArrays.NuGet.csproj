@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="GPUSharp" Version="0.1.0" />
+    <PackageReference Include="GPUSharp" Version="*" />
   </ItemGroup>
 
 </Project>
