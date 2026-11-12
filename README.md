@@ -74,3 +74,7 @@ dotnet build GPUSharp.slnx
 ## License
 
 GPUSharp is licensed under the [Apache License 2.0](LICENSE).
+
+## Contributing
+
+> This is a young project, and a good time to help shape it. Ideas, bug reports, and pull requests are all welcome!
