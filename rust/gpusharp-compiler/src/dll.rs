@@ -25,7 +25,9 @@ pub struct HostDllKernel<'a> {
 /// Each method must be an `f32` kernel. The cdylib exports `export_name` as a
 /// C function that takes one pointer per parameter, an output pointer, and a
 /// length. That function copies the arrays to the GPU, launches the kernel,
-/// and copies the result back.
+/// and copies the result back. The device module is read from this shared
+/// library. `cuda-oxide` otherwise looks in the host process executable, which
+/// is `dotnet` when .NET calls the export.
 ///
 /// The library is built with `cargo oxide` on Linux. `GPUSHARP_CUDA_ARCH`
 /// selects the PTX architecture and defaults to `sm_80`. `GPUSHARP_OXIDE_TARGET`
@@ -63,6 +65,8 @@ pub(crate) fn library_source(kernels: &[HostDllKernel<'_>]) -> Result<String, Er
     }
 
     let mut rust_source = String::from("use cuda_host::cuda_module;\n\n");
+    rust_source.push_str(host_loader());
+    rust_source.push('\n');
     for kernel in kernels {
         validate_export_name(kernel.export_name)?;
         let method = checked_f32_kernel(kernel.source)?;
@@ -150,7 +154,8 @@ pub unsafe extern \"C\" fn {export_name}({}) {{
 {slices}    let ctx = cuda_core::CudaContext::new(0).expect(\"GPUSharp could not open CUDA device 0\");
     let stream = ctx.default_stream();
 {copies}    let mut out_dev = cuda_core::DeviceBuffer::<f32>::zeroed(&stream, len).expect(\"GPUSharp could not allocate the GPU output\");
-    let module = {export_name}_module::load(&ctx).expect(\"GPUSharp could not load the CUDA module\");
+    let cuda_module = gpusharp_load_cuda_module(&ctx);
+    let module = {export_name}_module::from_module(cuda_module).expect(\"GPUSharp could not load the CUDA module\");
     module
         .{export_name}_kernel(
             &stream,
@@ -166,6 +171,60 @@ pub unsafe extern \"C\" fn {export_name}({}) {{
         signature.join(", "),
         launch_args.join(", ")
     )
+}
+
+fn host_loader() -> &'static str {
+    "\
+#[repr(C)]
+struct GpusharpDlInfo {
+    dli_fname: *const std::ffi::c_char,
+    dli_fbase: *mut std::ffi::c_void,
+    dli_sname: *const std::ffi::c_char,
+    dli_saddr: *mut std::ffi::c_void,
+}
+
+#[link(name = \"dl\")]
+unsafe extern \"C\" {
+    fn dladdr(addr: *const std::ffi::c_void, info: *mut GpusharpDlInfo) -> i32;
+}
+
+#[inline(never)]
+fn gpusharp_shared_library_path() -> String {
+    unsafe {
+        let mut info = std::mem::zeroed::<GpusharpDlInfo>();
+        let found = dladdr(
+            gpusharp_shared_library_path as *const std::ffi::c_void,
+            &mut info,
+        );
+        if found == 0 || info.dli_fname.is_null() {
+            panic!(\"GPUSharp could not find its CUDA library\");
+        }
+        std::ffi::CStr::from_ptr(info.dli_fname)
+            .to_string_lossy()
+            .into_owned()
+    }
+}
+
+fn gpusharp_load_cuda_module(
+    ctx: &std::sync::Arc<cuda_core::CudaContext>,
+) -> std::sync::Arc<cuda_core::CudaModule> {
+    let path = gpusharp_shared_library_path();
+    let bundles = cuda_core::embedded::artifact_bundles_from_binary_path(&path).unwrap_or_else(
+        |error| panic!(\"GPUSharp could not read the CUDA module from {path}: {error}\"),
+    );
+    let name = env!(\"CARGO_PKG_NAME\");
+    let bundle = bundles
+        .into_iter()
+        .find(|bundle| bundle.name == name)
+        .unwrap_or_else(|| panic!(\"GPUSharp could not load the CUDA module {name} from {path}\"));
+    let embedded = cuda_core::embedded::EmbeddedModule::new(bundle).unwrap_or_else(|| {
+        panic!(\"GPUSharp could not load the CUDA module {name} from {path}\")
+    });
+    embedded.load(ctx).unwrap_or_else(|error| {
+        panic!(\"GPUSharp could not load the CUDA module {name} from {path}: {error}\")
+    })
+}
+"
 }
 
 fn write_oxide_project(dir: &Path, rust_source: &str) -> Result<(), Error> {
@@ -320,6 +379,9 @@ mod tests {
         }])
         .expect("Add should be supported");
         assert!(source.contains("use cuda_host::cuda_module;"));
+        assert!(source.contains("artifact_bundles_from_binary_path"));
+        assert!(source.contains("dladdr"));
+        assert!(!source.contains("_module::load("));
         assert!(source.contains("mod gpusharp_calculator_add_module"));
         assert!(source.contains("pub fn gpusharp_calculator_add_kernel"));
         assert!(source.contains("CudaContext::new(0)"));
