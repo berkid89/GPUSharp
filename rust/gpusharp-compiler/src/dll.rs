@@ -289,11 +289,7 @@ fn compile_with_cargo_oxide(project_dir: &Path, out_path: &Path) -> Result<(), E
         .output()
         .map_err(|error| Error::Host(format!("failed to start cargo oxide: {error}")))?;
     if !output.status.success() {
-        return Err(Error::Host(format!(
-            "cargo oxide failed:\n{}{}",
-            String::from_utf8_lossy(&output.stderr),
-            String::from_utf8_lossy(&output.stdout)
-        )));
+        return Err(Error::Host(cargo_oxide_failure(&output)));
     }
 
     let built = target_dir.join("release").join("libgpusharp_kernels.so");
@@ -311,6 +307,27 @@ fn compile_with_cargo_oxide(project_dir: &Path, out_path: &Path) -> Result<(), E
         ))
     })?;
     Ok(())
+}
+
+fn cargo_oxide_failure(output: &std::process::Output) -> String {
+    let mut text = String::from_utf8_lossy(&output.stderr).into_owned();
+    text.push(' ');
+    text.push_str(&String::from_utf8_lossy(&output.stdout));
+    let mut collapsed = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    const MAX_LEN: usize = 2_000;
+    if collapsed.len() > MAX_LEN {
+        let mut end = MAX_LEN;
+        while !collapsed.is_char_boundary(end) {
+            end -= 1;
+        }
+        collapsed.truncate(end);
+        collapsed.push_str("...");
+    }
+    if collapsed.is_empty() {
+        format!("cargo oxide failed with {}", output.status)
+    } else {
+        format!("cargo oxide failed: {collapsed}")
+    }
 }
 
 fn cuda_arch() -> String {
