@@ -17,6 +17,9 @@ public static class Calculator
 float[] result = CalculatorGpu.Add(a, b);
 ```
 
+## Build status
+[![CI](https://github.com/berkid89/GPUSharp/actions/workflows/ci.yml/badge.svg)](https://github.com/berkid89/GPUSharp/actions/workflows/ci.yml)
+
 ## Install
 
 GPUSharp targets .NET 10. Building a `[GpuKernel]` project requires Linux, [cargo oxide](https://github.com/NVlabs/cuda-oxide) 0.2.1, the CUDA toolkit, and LLVM 21. Running the kernel requires an NVIDIA GPU (Ampere, `sm_80`, or newer).
@@ -37,6 +40,12 @@ dotnet run --project samples/AddArrays
 
 That runs `Calculator.Add` over two 5-element arrays and prints `11, 22, 33, 44, 55`.
 
+`samples/AddArrays.NuGet` is the same program with a `PackageReference` to GPUSharp 0.1.0. Its `nuget.config` lists only nuget.org, so the build does not use a local package source or the projects in this repo:
+
+```bash
+dotnet run --project samples/AddArrays.NuGet
+```
+
 ## How it works
 
 `src/GPUSharp` defines `[GpuKernel]`. `src/GPUSharp.Generator` finds marked methods at build time and emits the array companion. `rust/gpusharp-compiler` compiles each method into a cuda-oxide kernel and a host library that launches it.
@@ -44,6 +53,7 @@ That runs `Calculator.Add` over two 5-element arrays and prints `11, 22, 33, 44,
 ## Development
 
 - `samples/AddArrays` — console app that adds two arrays through `CalculatorGpu.Add`.
+- `samples/AddArrays.NuGet` — the same app, restored from the GPUSharp package on nuget.org.
 - `src/GPUSharp` — .NET 10 package and `[GpuKernel]`.
 - `src/GPUSharp.Generator` — Roslyn source generator for the array companion.
 - `rust/gpusharp-compiler` — kernel compiler. `dll --out <so> <export-name> <method.cs>` compiles one kernel with `cargo oxide`.
