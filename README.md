@@ -22,13 +22,13 @@ float[] result = CalculatorGpu.Add(a, b);
 
 ## Install
 
-GPUSharp targets .NET 10. Building a `[GpuKernel]` project requires Linux, [cargo oxide](https://github.com/NVlabs/cuda-oxide) 0.2.1, the CUDA toolkit, and LLVM 21. Running the kernel requires an NVIDIA GPU (Ampere, `sm_80`, or newer).
+GPUSharp targets .NET 10. `dotnet build` works on Windows and Linux. Running a kernel requires Linux, [cargo oxide](https://github.com/NVlabs/cuda-oxide) 0.2.1, the CUDA toolkit, LLVM 21, and an NVIDIA GPU (Ampere, `sm_80`, or newer). Calling a kernel on another operating system throws.
 
 ```bash
 dotnet add package GPUSharp --version 0.1.0
 ```
 
-The published package includes a Windows compiler frontend. That frontend cannot compile these kernels. Build them on Linux with `cargo oxide` on `PATH`.
+The published package includes the compiler for Windows and Linux. Windows builds check the kernels and emit the managed API. Linux builds compile the kernel library with `cargo oxide` on `PATH`.
 
 ## Example
 

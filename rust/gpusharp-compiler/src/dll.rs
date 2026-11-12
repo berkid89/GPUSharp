@@ -36,14 +36,17 @@ pub struct HostDllKernel<'a> {
 /// # Errors
 ///
 /// Returns [`Error::Transpile`], [`Error::MissingGpuKernel`], or [`Error::NotF32`]
-/// when a method cannot be compiled. Returns [`Error::Host`] when the host is
-/// not Linux, `cargo oxide` fails, or an export name is not a C identifier.
-pub fn build_host_dll(kernels: &[HostDllKernel<'_>], out_path: &Path) -> Result<(), Error> {
+/// when a method cannot be compiled. Returns [`Error::Host`] when `cargo oxide`
+/// fails or an export name is not a C identifier. On a non-Linux host the
+/// kernels are still checked, and the result is [`HostDllBuild::Deferred`]:
+/// the managed API can build, and calling it throws.
+pub fn build_host_dll(
+    kernels: &[HostDllKernel<'_>],
+    out_path: &Path,
+) -> Result<HostDllBuild, Error> {
     let rust_source = library_source(kernels)?;
     if !cfg!(target_os = "linux") {
-        return Err(Error::Host(
-            "GPUSharp kernels compile with cuda-oxide, which requires Linux".to_string(),
-        ));
+        return Ok(HostDllBuild::Deferred);
     }
 
     if let Some(parent) = out_path.parent()
@@ -56,7 +59,17 @@ pub fn build_host_dll(kernels: &[HostDllKernel<'_>], out_path: &Path) -> Result<
 
     let dir = TempDir(unique_temp_dir());
     write_oxide_project(&dir.0, &rust_source)?;
-    compile_with_cargo_oxide(&dir.0, out_path)
+    compile_with_cargo_oxide(&dir.0, out_path)?;
+    Ok(HostDllBuild::Compiled)
+}
+
+/// Whether [`build_host_dll`] wrote a kernel library.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HostDllBuild {
+    /// `out_path` is a CUDA kernel library.
+    Compiled,
+    /// The kernels are valid, but this host cannot compile them.
+    Deferred,
 }
 
 pub(crate) fn library_source(kernels: &[HostDllKernel<'_>]) -> Result<String, Error> {

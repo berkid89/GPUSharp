@@ -87,7 +87,12 @@ public sealed class KernelGenerator : IIncrementalGenerator
             arguments.Add(csharpPath);
         }
 
-        if (!RunCompiler(compiler, arguments, out string message) || !File.Exists(nativePath))
+        bool compiled = RunCompiler(compiler, arguments, out string message);
+        bool nativeReady = File.Exists(nativePath);
+        bool deferNative = !nativeReady
+            && Environment.OSVersion.Platform != PlatformID.Unix
+            && (compiled || message.IndexOf("requires Linux", StringComparison.Ordinal) >= 0);
+        if ((!compiled || !nativeReady) && !deferNative)
         {
             if (message.Length == 0)
             {
@@ -189,6 +194,10 @@ public sealed class KernelGenerator : IIncrementalGenerator
 
         builder.AppendLine(")");
         builder.AppendLine("    {");
+        builder.AppendLine("        if (!OperatingSystem.IsLinux())");
+        builder.AppendLine("        {");
+        builder.AppendLine("            throw new PlatformNotSupportedException(\"GPUSharp kernels run on Linux with an NVIDIA GPU.\");");
+        builder.AppendLine("        }");
         foreach (string name in kernel.ParameterNames)
         {
             builder.Append("        if (").Append(name).AppendLine(" is null)");

@@ -7,7 +7,7 @@
 
 mod dll;
 
-pub use dll::{HostDllKernel, build_host_dll};
+pub use dll::{HostDllBuild, HostDllKernel, build_host_dll};
 
 use csharp_to_rust::PrimitiveType;
 use csharp_to_rust::ir::Method;

@@ -81,6 +81,10 @@ jobs:
       - name: Install MinGW
         run: sudo apt-get update && sudo apt-get install -y gcc-mingw-w64
 
+      - name: Build Linux compiler
+        working-directory: rust/gpusharp-compiler
+        run: cargo build --release --locked
+
       - name: Build Windows compiler
         working-directory: rust/gpusharp-compiler
         env:
@@ -89,8 +93,9 @@ jobs:
 
       - name: Stage compiler
         run: |
-          mkdir -p src/GPUSharp/tools/win-x64
+          mkdir -p src/GPUSharp/tools/win-x64 src/GPUSharp/tools/linux-x64
           cp rust/gpusharp-compiler/target/x86_64-pc-windows-gnu/release/gpusharp-compiler.exe src/GPUSharp/tools/win-x64/gpusharp-compiler.exe
+          cp rust/gpusharp-compiler/target/release/gpusharp-compiler src/GPUSharp/tools/linux-x64/gpusharp-compiler
 
       - name: Pack
         run: dotnet pack src/GPUSharp/GPUSharp.csproj -c Release -o artifacts
@@ -105,7 +110,8 @@ jobs:
             build/GPUSharp.targets \
             lib/net10.0/GPUSharp.dll \
             analyzers/dotnet/cs/GPUSharp.Generator.dll \
-            tools/win-x64/gpusharp-compiler.exe
+            tools/win-x64/gpusharp-compiler.exe \
+            tools/linux-x64/gpusharp-compiler
           do
             if ! grep -qx "$path" <<< "$entries"; then
               echo "Package is missing $path"

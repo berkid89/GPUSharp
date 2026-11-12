@@ -70,5 +70,7 @@ fn dll_command(mut args: impl Iterator<Item = String>) -> Result<(), String> {
             export_name,
         })
         .collect::<Vec<_>>();
-    gpusharp_compiler::build_host_dll(&kernels, Path::new(&out)).map_err(|error| error.to_string())
+    gpusharp_compiler::build_host_dll(&kernels, Path::new(&out))
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
