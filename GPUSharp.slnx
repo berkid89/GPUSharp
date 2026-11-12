@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GPUSharp/GPUSharp.csproj" />
+    <Project Path="src/GPUSharp.Generator/GPUSharp.Generator.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/AddArrays/AddArrays.csproj" />
+  </Folder>
+</Solution>

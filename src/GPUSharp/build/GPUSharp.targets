@@ -1,0 +1,56 @@
+<Project>
+
+  <PropertyGroup>
+    <GpuSharpProjectDir>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\'))</GpuSharpProjectDir>
+    <GpuSharpNativeDir>$(GpuSharpProjectDir)obj\$(Configuration)\$(TargetFramework)\gpusharp\</GpuSharpNativeDir>
+    <GpuSharpNativeFileName Condition="$([MSBuild]::IsOSPlatform('Windows'))">gpusharp_kernels.dll</GpuSharpNativeFileName>
+    <GpuSharpNativeFileName Condition="$([MSBuild]::IsOSPlatform('Linux'))">libgpusharp_kernels.so</GpuSharpNativeFileName>
+    <GpuSharpNativeFileName Condition="$([MSBuild]::IsOSPlatform('OSX'))">libgpusharp_kernels.dylib</GpuSharpNativeFileName>
+    <GpuSharpNativePath>$(GpuSharpNativeDir)$(GpuSharpNativeFileName)</GpuSharpNativePath>
+    <GpuSharpOutputDir>$(GpuSharpProjectDir)bin\$(Configuration)\$(TargetFramework)\</GpuSharpOutputDir>
+    <GpuSharpPackedCompiler>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../tools/win-x64/gpusharp-compiler.exe'))</GpuSharpPackedCompiler>
+    <GpuSharpRepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\..\'))</GpuSharpRepoRoot>
+    <GpuSharpManifest>$(GpuSharpRepoRoot)rust\gpusharp-compiler\Cargo.toml</GpuSharpManifest>
+    <GpuSharpCompilerTarget>$(GpuSharpRepoRoot)rust\gpusharp-compiler\target</GpuSharpCompilerTarget>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="Exists('$(GpuSharpManifest)')">
+    <GpuSharpCompiler Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(GpuSharpCompilerTarget)/debug/gpusharp-compiler.exe</GpuSharpCompiler>
+    <GpuSharpCompiler Condition="!$([MSBuild]::IsOSPlatform('Windows'))">$(GpuSharpCompilerTarget)/debug/gpusharp-compiler</GpuSharpCompiler>
+    <GpuSharpUseRepoCompiler>true</GpuSharpUseRepoCompiler>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(GpuSharpUseRepoCompiler)' != 'true' And $([MSBuild]::IsOSPlatform('Windows')) And Exists('$(GpuSharpPackedCompiler)')">
+    <GpuSharpCompiler>$(GpuSharpPackedCompiler)</GpuSharpCompiler>
+    <GpuSharpUsePackedCompiler>true</GpuSharpUsePackedCompiler>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="GpuSharpCompiler" />
+    <CompilerVisibleProperty Include="GpuSharpNativePath" />
+  </ItemGroup>
+
+  <Target Name="BuildGpuSharpCompiler" BeforeTargets="CoreCompile" Condition="'$(GpuSharpUseRepoCompiler)' == 'true'">
+    <Exec
+      Command="cargo build --locked --manifest-path &quot;$(GpuSharpManifest)&quot; --target-dir &quot;$(GpuSharpCompilerTarget)&quot;"
+      EnvironmentVariables="CARGO_TARGET_DIR=$(GpuSharpCompilerTarget)" />
+    <MakeDir Directories="$(GpuSharpNativeDir)" />
+  </Target>
+
+  <Target Name="PrepareGpuSharpCompiler" BeforeTargets="CoreCompile" Condition="'$(GpuSharpUsePackedCompiler)' == 'true'">
+    <MakeDir Directories="$(GpuSharpNativeDir)" />
+  </Target>
+
+  <Target Name="RequireGpuSharpCompiler" BeforeTargets="CoreCompile" Condition="'$(GpuSharpUsePackedCompiler)' != 'true' And '$(GpuSharpUseRepoCompiler)' != 'true'">
+    <Error Text="GPUSharp could not find its compiler. rustc must be on PATH." />
+  </Target>
+
+  <Target Name="CopyGpuSharpKernels" AfterTargets="Build">
+    <Copy
+      SourceFiles="$(GpuSharpNativePath)"
+      DestinationFolder="$(GpuSharpOutputDir)"
+      SkipUnchangedFiles="true"
+      Condition="Exists('$(GpuSharpNativePath)')" />
+  </Target>
+
+</Project>

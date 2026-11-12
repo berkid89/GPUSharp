@@ -1,0 +1,58 @@
+name: Install cuda-oxide toolchain
+description: CUDA toolkit, LLVM 21, and cargo-oxide for compiling GPUSharp kernels without a GPU
+
+runs:
+  using: composite
+  steps:
+    - name: Cache cuda-oxide
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ~/.cargo/bin/cargo-oxide
+          ~/.cargo/cuda-oxide
+          ~/.cache/gpusharp
+        key: gpusharp-cuda-oxide-v0.2.1-${{ runner.os }}
+
+    - name: Install CUDA toolkit
+      uses: Jimver/cuda-toolkit@v0.2.35
+      with:
+        cuda: "13.1.1"
+        method: network
+        sub-packages: '["nvcc", "cudart-dev"]'
+
+    - name: Install LLVM 21
+      shell: bash
+      run: |
+        set -euo pipefail
+        source /etc/os-release
+        sudo install -d -m 0755 /etc/apt/keyrings
+        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/keyrings/apt-llvm-org.asc >/dev/null
+        echo "deb [signed-by=/etc/apt/keyrings/apt-llvm-org.asc] https://apt.llvm.org/${VERSION_CODENAME}/ llvm-toolchain-${VERSION_CODENAME}-21 main" | sudo tee /etc/apt/sources.list.d/llvm-21.list
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends llvm-21 clang-21 libclang-21-dev libclang-common-21-dev
+        echo "/usr/lib/llvm-21/bin" >> "$GITHUB_PATH"
+        echo "LIBCLANG_PATH=/usr/lib/llvm-21/lib" >> "$GITHUB_ENV"
+        if [ -n "${CUDA_PATH:-}" ]; then
+          echo "CUDA_TOOLKIT_PATH=$CUDA_PATH" >> "$GITHUB_ENV"
+        fi
+        echo "GPUSHARP_OXIDE_TARGET=$HOME/.cache/gpusharp/oxide-target" >> "$GITHUB_ENV"
+        echo "GPUSHARP_CUDA_ARCH=sm_80" >> "$GITHUB_ENV"
+
+    - name: Install the cuda-oxide Rust toolchain
+      shell: bash
+      run: rustup toolchain install nightly-2026-04-03 --component rust-src,rustc-dev,llvm-tools
+
+    - name: Install cargo-oxide
+      shell: bash
+      run: |
+        set -euo pipefail
+        src="${CARGO_HOME:-$HOME/.cargo}/cuda-oxide/src"
+        if [ ! -f "$src/Cargo.toml" ]; then
+          git clone --depth 1 --branch v0.2.1 https://github.com/NVlabs/cuda-oxide.git "$src"
+        fi
+        if ! command -v cargo-oxide >/dev/null 2>&1; then
+          cargo +nightly-2026-04-03 install --git https://github.com/NVlabs/cuda-oxide.git --tag v0.2.1 cargo-oxide --locked
+        fi
+        rustup default stable

@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>GPUSharp</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>Daniel Berki</Authors>
+    <Description>Write GPU kernels in C#. Mark a scalar method with [GpuKernel] and call the generated array API on NVIDIA GPUs. Building a kernel requires Linux, cargo oxide, the CUDA toolkit, and LLVM 21. Running it requires an NVIDIA GPU.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/berkid89/GPUSharp</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/berkid89/GPUSharp</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GpuSharpCompilerExe>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)tools/win-x64/gpusharp-compiler.exe'))</GpuSharpCompilerExe>
+    <GpuSharpGeneratorDll>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../GPUSharp.Generator/bin/$(Configuration)/netstandard2.0/GPUSharp.Generator.dll'))</GpuSharpGeneratorDll>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\GPUSharp.Generator\GPUSharp.Generator.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" PrivateAssets="all" />
+    <None Include="build\GPUSharp.targets" Pack="true" PackagePath="build\GPUSharp.targets" />
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <Target Name="StageGpuSharpCompiler" BeforeTargets="_GetPackageFiles">
+    <Error
+      Condition="!Exists('$(GpuSharpCompilerExe)')"
+      Text="Pack needs tools/win-x64/gpusharp-compiler.exe." />
+    <ItemGroup>
+      <None Include="$(GpuSharpCompilerExe)" Pack="true" PackagePath="tools/win-x64/gpusharp-compiler.exe" />
+      <None Include="$(GpuSharpGeneratorDll)" Pack="true" PackagePath="analyzers/dotnet/cs/GPUSharp.Generator.dll" />
+    </ItemGroup>
+  </Target>
+
+</Project>
