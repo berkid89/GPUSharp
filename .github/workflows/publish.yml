@@ -99,7 +99,7 @@ jobs:
         shell: bash
         run: |
           package="$(echo artifacts/GPUSharp.*.nupkg)"
-          entries="$(tar -tf "$package")"
+          entries="$(unzip -Z1 "$package")"
           for path in \
             README.md \
             build/GPUSharp.targets \
